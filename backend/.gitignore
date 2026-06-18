@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Uploads (optional - only if you don't want uploaded files on GitHub)
+uploads/
+
+# Build files
+dist/
+build/
+
+# Editor files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+
+# OS files
+Thumbs.db
