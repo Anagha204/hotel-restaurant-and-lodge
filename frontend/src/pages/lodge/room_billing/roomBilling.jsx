@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
+import Swal from "sweetalert2";
 
 // Reusable styles
 const STATUS_STYLES = {
@@ -94,7 +95,7 @@ export default function RoomBilling() {
         laundry: 0,
         extraServices: 0,
         tax: 0,
-        status: "Generated",   // ✅ Now defaults to "Generated"
+        status: "Generated",
     });
 
     // Fetch all orders to calculate food charges (room service)
@@ -160,10 +161,8 @@ export default function RoomBilling() {
         try {
             const res = await axios.get("http://localhost:5000/api/checkin");
             const checkins = res.data;
-            // Find the active checkin for this room (no checkout time)
             const active = checkins.find(c => c.booking?.room?.roomNumber === roomNumber && !c.checkOutTime);
             if (active) return active;
-            // Fallback: maybe room number is stored differently
             const alt = checkins.find(c => c.booking?.roomNumber === roomNumber && !c.checkOutTime);
             return alt || null;
         } catch (err) {
@@ -176,24 +175,22 @@ export default function RoomBilling() {
     const calculateRoomRent = (nightlyPrice, checkinTime, checkoutDateTime) => {
         const ci = new Date(checkinTime);
         const co = checkoutDateTime ? new Date(checkoutDateTime) : new Date();
-        if (co <= ci) return nightlyPrice; // minimum 1 night
+        if (co <= ci) return nightlyPrice;
         const nights = Math.ceil((co - ci) / (1000 * 60 * 60 * 24));
         return nightlyPrice * nights;
     };
 
-    // Auto‑fill all charges (including computed room rent) when room is selected
+    // Auto‑fill all charges when room is selected
     const handleRoomSelect = async (roomId) => {
         const selected = checkedInRooms.find((r) => r._id === roomId);
         if (!selected) return;
 
-        // Fetch active check-in for this room
         const checkin = await fetchCheckinForRoom(selected.roomNumber);
         let computedRoomRent = selected.price || 0;
         let checkinTime = null;
 
         if (checkin && checkin.checkInTime) {
             checkinTime = checkin.checkInTime;
-            // Use customCheckoutDateTime if set, else current time
             const checkoutValue = customCheckoutDateTime || new Date().toISOString();
             computedRoomRent = calculateRoomRent(selected.price, checkinTime, checkoutValue);
         }
@@ -211,7 +208,7 @@ export default function RoomBilling() {
         });
     };
 
-    // When the custom checkout datetime changes, recalc room rent for the currently selected room
+    // When custom checkout datetime changes, recalc room rent
     useEffect(() => {
         if (newBill.room && customCheckoutDateTime) {
             const selectedRoom = checkedInRooms.find(r => r.roomNumber === newBill.room);
@@ -226,11 +223,10 @@ export default function RoomBilling() {
         }
     }, [customCheckoutDateTime, newBill.room, checkedInRooms]);
 
-    // Refresh charges for edit mode (similar logic)
+    // Refresh charges for edit mode
     const refreshChargesForEdit = async (roomNumber) => {
         const newFoodCharges = await calculateFoodChargesForRoom(roomNumber);
         const { laundryTotal, extraTotal } = await calculateAmenityCharges(roomNumber);
-        // For edit mode, also recalc room rent based on stored checkout date (or current date)
         const selectedRoom = checkedInRooms.find(r => r.roomNumber === roomNumber);
         let computedRoomRent = editData.roomRent;
         if (selectedRoom) {
@@ -286,10 +282,9 @@ export default function RoomBilling() {
 
     const addBill = async () => {
         if (!newBill.room) {
-            alert("Please select a checked-in room");
+            Swal.fire("Error", "Please select a checked-in room", "warning");
             return;
         }
-        // Force status to "Generated" when posting
         await axios.post("http://localhost:5000/api/roombilling", { ...newBill, status: "Generated" });
         fetchBills();
         setShowForm(false);
@@ -300,17 +295,67 @@ export default function RoomBilling() {
             laundry: 0,
             extraServices: 0,
             tax: 0,
-            status: "Generated",   // Reset with "Generated"
+            status: "Generated",
         });
         setCustomCheckoutDateTime("");
     };
 
-    const updateStatus = async (id, status) => {
-        await axios.put(`http://localhost:5000/api/roombilling/${id}`, { status });
-        fetchBills();
+    // ─── Cashfree payment handler (identical to billing.jsx) ────────────────
+    const handleRoomPayment = async (bill) => {
+        const total = calculateTotal(bill);
+        if (total <= 0) {
+            Swal.fire("Error", "Total amount is ₹0. Nothing to pay.", "warning");
+            return;
+        }
+
+        try {
+            // Step 1: Create Cashfree order
+            const { data } = await axios.post("http://localhost:5000/api/payment/create-order", {
+                amount: Math.round(total),
+                type: "lodge",
+                customerName: `Room ${bill.room}`,
+                customerPhone: "9999999999",
+                customerEmail: "guest@hotel.com"
+            });
+
+            // Step 2: Open Cashfree popup
+            const cashfree = await window.Cashfree({ mode: "sandbox" });
+
+            cashfree.checkout({
+                paymentSessionId: data.paymentSessionId,
+                redirectTarget: "_modal",
+            }).then(async (result) => {
+                if (result.error) {
+                    Swal.fire("Payment Failed", result.error.message, "error");
+                } else if (result.redirect) {
+                    // Redirect happened – verify on return (not expected in modal mode)
+                    console.log("Redirect occurred, verification will happen on return page.");
+                } else {
+                    // Step 3: Verify payment
+                    const verify = await axios.post("http://localhost:5000/api/payment/verify-payment", {
+                        orderId: data.orderId
+                    });
+                    if (verify.data.success) {
+                        // Step 4: Mark bill as Paid
+                        await axios.put(`http://localhost:5000/api/roombilling/${bill._id}`, {
+                            ...bill,
+                            status: "Paid"
+                        });
+                        fetchBills();
+                        Swal.fire("Success", `Payment successful! Room ${bill.room} bill marked as Paid.`, "success");
+                    } else {
+                        Swal.fire("Error", "Payment verification failed!", "error");
+                    }
+                }
+            });
+        } catch (err) {
+            Swal.fire("Error", "Could not initialize payment. Check your backend.", "error");
+            console.error(err);
+        }
     };
 
     const handleDelete = async (id) => {
+        if (!confirm("Delete this bill?")) return;
         await axios.delete(`http://localhost:5000/api/roombilling/${id}`);
         setBills(bills.filter((b) => b._id !== id));
     };
@@ -331,10 +376,11 @@ export default function RoomBilling() {
             fetchBills();
         } catch (err) {
             console.log("EDIT ERROR:", err);
-            alert("Error updating bill");
+            Swal.fire("Error", "Error updating bill", "error");
         }
     };
 
+    // ─── Print receipt with scrollable window ──────────────────────────────
     const printBill = (b) => {
         const subtotal =
             Number(b.roomRent) +
@@ -350,7 +396,7 @@ export default function RoomBilling() {
             <head>
                 <title>Hotel Invoice</title>
                 <style>
-                    body { font-family: 'Arial'; padding: 30px; background: #fff; }
+                    body { font-family: 'Arial', padding: 30px; background: #fff; overflow: auto; }
                     .invoice-box { max-width: 800px; margin: auto; border: 1px solid #eee; padding: 20px; }
                     .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
                     h2 { margin: 0; }
@@ -438,7 +484,7 @@ export default function RoomBilling() {
                 />
             </div>
 
-            {/* Modal: Add New Bill with custom checkout date */}
+            {/* Modal: Add New Bill */}
             {showForm && (
                 <div
                     className="modal fade show d-block"
@@ -486,7 +532,6 @@ export default function RoomBilling() {
                                         )}
                                     </div>
 
-                                    {/* Custom Checkout Datetime Picker */}
                                     <div className="col-md-6">
                                         <label className="text-muted fw-bold mb-1">Actual Check‑Out Date & Time</label>
                                         <input
@@ -735,13 +780,42 @@ export default function RoomBilling() {
                                             </button>
                                         </>
                                     )}
-                                    <div className="d-flex gap-2 mt-3">
+                                    <div className="d-flex gap-2 mt-3 flex-wrap">
                                         <button style={delBtn} onClick={() => handleDelete(b._id)}>
                                             🗑️ Delete
                                         </button>
                                         <button style={editBtn} onClick={() => printBill(b)}>
                                             🖨️ Print
                                         </button>
+                                        {b.status !== "Paid" ? (
+                                            <button
+                                                onClick={() => handleRoomPayment(b)}
+                                                style={{
+                                                    background: "linear-gradient(135deg, #1a73e8, #0d47a1)",
+                                                    border: "none",
+                                                    borderRadius: "8px",
+                                                    padding: "5px 14px",
+                                                    fontSize: "0.78rem",
+                                                    fontWeight: 600,
+                                                    color: "white",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                💳 Pay Now
+                                            </button>
+                                        ) : (
+                                            <span style={{
+                                                background: "#E8F5E9",
+                                                border: "1px solid #2E7D32",
+                                                color: "#2E7D32",
+                                                borderRadius: "8px",
+                                                padding: "5px 14px",
+                                                fontSize: "0.78rem",
+                                                fontWeight: 600,
+                                            }}>
+                                                ✅ Paid
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>

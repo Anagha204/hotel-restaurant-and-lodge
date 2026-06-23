@@ -39,24 +39,52 @@ export default function Receipts() {
     const printElement = document.getElementById("receipt-print-area");
     if (!printElement) return;
 
-    const printWindow = window.open('', '', 'width=400,height=600');
+    const printWindow = window.open('', '', 'width=420'); // ← removed height=600
     printWindow.document.write(`
       <html>
         <head>
           <title>Receipt - Order #${selectedOrder?._id.toString().slice(-6).toUpperCase()}</title>
           <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
           <style>
-            body { padding: 20px; font-family: monospace; }
-            #receipt-print-area { max-width: 350px; margin: 0 auto; padding: 20px; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            html, body {
+              height: auto !important;
+              overflow: visible !important;
+              padding: 20px;
+              font-family: monospace;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            #receipt-print-area {
+              max-width: 350px;
+              margin: 0 auto;
+              padding: 20px;
+              height: auto !important;
+              overflow: visible !important;
+            }
+            @media print {
+              html, body {
+                height: auto !important;
+                overflow: visible !important;
+              }
+              #receipt-print-area {
+                width: 100%;
+                max-width: 100%;
+                box-shadow: none !important;
+                border: none !important;
+              }
+            }
           </style>
         </head>
         <body>
           ${printElement.outerHTML}
           <script>
-            setTimeout(() => {
-              window.print();
-              window.close();
-            }, 500);
+            window.onload = function() {
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 600);
+            };
           </script>
         </body>
       </html>
@@ -97,7 +125,7 @@ export default function Receipts() {
 
   return (
     <div className="container-fluid px-3 px-md-4 py-4">
-      
+
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 d-print-none">
         <div>
           <h3 className="page-title mb-0">🧾 Receipt & Invoices</h3>
@@ -121,8 +149,8 @@ export default function Receipts() {
                   <li className="list-group-item text-center py-5 text-muted border-0">No paid orders found.</li>
                 ) : (
                   orders.map(o => (
-                    <li 
-                      key={o._id} 
+                    <li
+                      key={o._id}
                       className={`list-group-item px-4 py-3 border-light`}
                       style={{ cursor: "pointer", background: selectedOrder?._id === o._id ? "#F0F8FF" : "white" }}
                       onClick={() => setSelectedOrder(o)}
@@ -163,7 +191,7 @@ export default function Receipts() {
                 <div className="d-flex gap-2">
                   <button className="btn btn-sm btn-outline-success" onClick={shareWhatsApp}><i className="bi bi-whatsapp"></i> WhatsApp</button>
                   <button className="btn btn-sm btn-outline-secondary" onClick={shareEmail}><i className="bi bi-envelope"></i> Email</button>
-                  <button style={{...primaryBtn, padding: "6px 16px", fontSize: "0.8rem"}} onClick={handlePrint}><i className="bi bi-printer me-1"></i> Print / Save PDF</button>
+                  <button style={{ ...primaryBtn, padding: "6px 16px", fontSize: "0.8rem" }} onClick={handlePrint}><i className="bi bi-printer me-1"></i> Print / Save PDF</button>
                 </div>
               </div>
               <div className="card-body p-5 d-flex justify-content-center bg-light">

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import Swal from "sweetalert2";
 
 const BASE_URL = "http://localhost:5000/api";
 
@@ -115,7 +116,7 @@ export default function CombinedBilling() {
         checkOutTime: "",
     });
 
-    // ========== SAFE TOTAL CALCULATION (handles missing/undefined fields) ==========
+    // SAFE TOTAL CALCULATION
     const calculateTotal = (bill) => {
         const roomRent = Number(bill.roomRent) || 0;
         const restaurantCharges = Number(bill.restaurantCharges) || 0;
@@ -129,7 +130,7 @@ export default function CombinedBilling() {
         return finalTotal > 0 ? finalTotal : 0;
     };
 
-    // ========== Data Fetching ==========
+    // Data Fetching
     const fetchAllData = async () => {
         setLoading(true);
         try {
@@ -152,7 +153,7 @@ export default function CombinedBilling() {
         fetchAllData();
     }, []);
 
-    // Dynamically calculate room rent based on check-in and check-out time
+    // Auto-calc room rent on checkout change
     useEffect(() => {
         if (newBill.room && newBill.checkInTime && newBill.checkOutTime) {
             const basePrice = roomsMap[newBill.room]?.price || 0;
@@ -186,7 +187,6 @@ export default function CombinedBilling() {
         try {
             const res = await axios.get(`${BASE_URL}/checkin`);
             const active = res.data.filter(c => !c.checkOutTime);
-            console.log("Active check-ins (no checkOutTime):", active);
             setActiveCheckins(active);
             if (active.length === 0) {
                 setErrorMsg("No active check-ins found. Please check in guests first.");
@@ -226,7 +226,7 @@ export default function CombinedBilling() {
         }
     };
 
-    // ========== Helper functions ==========
+    // Helper functions
     const calculateOrderChargesForRoom = (roomNumber) => {
         let restaurantTotal = 0;
         let roomServiceTotal = 0;
@@ -294,6 +294,60 @@ export default function CombinedBilling() {
             console.warn("Cannot extract room number from checkin:", checkin);
         }
         return { roomNumber, guestName, phone, advancePayment };
+    };
+
+    // ─── Cashfree payment handler (identical to billing.jsx) ────────────────
+    const handleLodgePayment = async (bill) => {
+        const total = calculateTotal(bill);
+        if (total <= 0) {
+            Swal.fire("Error", "Total amount is ₹0. Nothing to pay.", "warning");
+            return;
+        }
+
+        try {
+            // Step 1: Create Cashfree order
+            const { data } = await axios.post(`${BASE_URL}/payment/create-order`, {
+                amount: Math.round(total),
+                type: "lodge",
+                customerName: bill.guestName || "Guest",
+                customerPhone: bill.phone || "9999999999",
+                customerEmail: "guest@hotel.com"
+            });
+
+            // Step 2: Open Cashfree popup
+            const cashfree = await window.Cashfree({ mode: "sandbox" });
+
+            cashfree.checkout({
+                paymentSessionId: data.paymentSessionId,
+                redirectTarget: "_modal",
+            }).then(async (result) => {
+                if (result.error) {
+                    Swal.fire("Payment Failed", result.error.message, "error");
+                } else if (result.redirect) {
+                    // Redirect happened – verify on return (not expected)
+                    console.log("Redirect occurred, verification will happen on return page.");
+                } else {
+                    // Step 3: Verify payment
+                    const verify = await axios.post(`${BASE_URL}/payment/verify-payment`, {
+                        orderId: data.orderId
+                    });
+                    if (verify.data.success) {
+                        // Step 4: Mark bill as Paid
+                        await axios.put(`${BASE_URL}/combinedbilling/${bill._id}`, {
+                            ...bill,
+                            status: "Paid"
+                        });
+                        await fetchBills();
+                        Swal.fire("Success", `Payment successful! Room ${bill.room} bill marked as Paid.`, "success");
+                    } else {
+                        Swal.fire("Error", "Payment verification failed!", "error");
+                    }
+                }
+            });
+        } catch (err) {
+            Swal.fire("Error", "Could not initialize payment. Check your backend.", "error");
+            console.error(err);
+        }
     };
 
     const handleGuestSelect = async (checkinId) => {
@@ -388,7 +442,7 @@ export default function CombinedBilling() {
             await axios.delete(`${BASE_URL}/combinedbilling/${id}`);
             setBills(bills.filter((b) => b._id !== id));
         } catch (err) {
-            alert("Error deleting bill");
+            Swal.fire("Error", "Error deleting bill", "error");
         }
     };
 
@@ -412,10 +466,11 @@ export default function CombinedBilling() {
             await fetchBills();
         } catch (err) {
             console.error("Save edit error:", err);
-            alert("Error updating bill");
+            Swal.fire("Error", "Error updating bill", "error");
         }
     };
 
+    // ─── Print receipt with scrollable window ──────────────────────────────
     const printBill = (b) => {
         const total = calculateTotal(b);
         const subtotal =
@@ -432,7 +487,7 @@ export default function CombinedBilling() {
             <head>
                 <title>Combined Billing Invoice</title>
                 <style>
-                    body { font-family: 'Arial'; padding: 30px; background: #fff; }
+                    body { font-family: 'Arial', padding: 30px; background: #fff; overflow: auto; }
                     .invoice-box { max-width: 800px; margin: auto; border: 1px solid #eee; padding: 20px; }
                     .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
                     h2 { margin: 0; }
@@ -705,9 +760,37 @@ export default function CombinedBilling() {
                                         </>
                                     )}
                                 </div>
-                                <div className="card-footer bg-white border-0 d-flex gap-2 p-3">
+                                <div className="card-footer bg-white border-0 d-flex gap-2 p-3 flex-wrap">
                                     <button style={delBtn} className="flex-fill" onClick={() => handleDelete(b._id)}>Delete</button>
                                     <button style={{ ...editBtn, background: "#E8F5E9", border: "1px solid #2E7D32", color: "#2E7D32" }} className="flex-fill" onClick={() => printBill(b)}>Print Invoice</button>
+                                    {b.status !== "Paid" && (
+                                        <button
+                                            className="flex-fill"
+                                            onClick={() => handleLodgePayment(b)}
+                                            style={{
+                                                background: "linear-gradient(135deg, #1a73e8, #0d47a1)",
+                                                border: "none",
+                                                borderRadius: "8px",
+                                                padding: "5px 14px",
+                                                fontSize: "0.78rem",
+                                                fontWeight: 600,
+                                                color: "white",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            💳 Pay Now
+                                        </button>
+                                    )}
+                                    {b.status === "Paid" && (
+                                        <span style={{
+                                            background: "#E8F5E9", border: "1px solid #2E7D32",
+                                            color: "#2E7D32", borderRadius: "8px",
+                                            padding: "5px 14px", fontSize: "0.78rem",
+                                            fontWeight: 600, textAlign: "center"
+                                        }} className="flex-fill">
+                                            ✅ Paid
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -716,4 +799,4 @@ export default function CombinedBilling() {
             )}
         </div>
     );
-} 
+}

@@ -1,5 +1,7 @@
-import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+import express from "express";
+
 import mongoose from "mongoose";
 import cors from "cors";
 import path from 'path';
@@ -43,9 +45,11 @@ import notifications from "./routes/restaurant/notifications.js";
 import userRoutes from "./routes/userRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import activityRoutes from "./routes/activityRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
+
 
 const app = express();
-dotenv.config();
+
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -88,6 +92,7 @@ app.use("/api/notifications", notifications);
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/activity", activityRoutes);
+app.use("/api/payment", paymentRoutes);
 
 mongoose.connect(process.env.MONGO_URL)
   .then(() => console.log("MongoDB Connected"))

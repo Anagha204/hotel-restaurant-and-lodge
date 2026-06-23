@@ -5,19 +5,24 @@ import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET;
+// const JWT_SECRET = process.env.JWT_SECRET;
+// console.log("JWT_SECRET loaded:", JWT_SECRET); // ← add this line
 
 router.post("/login", async (req, res) => {
     const { email, password } = req.body;
     try {
+        console.log("JWT_SECRET:", process.env.JWT_SECRET);  // ← add this
+        console.log("Login attempt:", email);                 // ← add this
         const user = await User.findOne({ email });
         if (!user) return res.status(400).json({ message: "Invalid credentials" });
         if (!user.isActive) return res.status(400).json({ message: "Account is inactive" });
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
-        const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "1h" });
+        // ✅ Use process.env directly
+        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
         res.json({ token, user: { _id: user._id, name: user.name, email: user.email, role: user.role } });
     } catch (err) {
+        console.error("LOGIN ERROR:", err.message); // ← add this
         res.status(500).json({ message: err.message });
     }
 });

@@ -402,11 +402,8 @@ export default function BillingPayment() {
     win.document.close();
   };
 
-  const handleGenerateBill = async () => {
-    if (!selectedEntity || mergedItems.length === 0) {
-      Swal.fire("No selection", "Please select a table or customer with pending orders", "warning");
-      return;
-    }
+  // ─── Core billing logic (called after payment confirmed) ──────────────────
+  const processBill = async () => {
     setLoading(true);
     try {
       const orderIds = selectedEntity.orders.map(o => o._id);
@@ -436,6 +433,65 @@ export default function BillingPayment() {
       Swal.fire("Error", err.response?.data?.error || "Failed to process billing", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ─── Cashfree payment handler ──────────────────────────────────────────────
+  const initiateCashfree = async () => {
+    try {
+      // Step 1: Create order on backend
+      const { data } = await axios.post(`${BASE_URL}/payment/create-order`, {
+        amount: Math.round(grandTotal),
+        type: "restaurant",
+        customerName: selectedEntity?.label || "Customer",
+        customerPhone: "9999999999",   // replace with actual customer phone if available
+        customerEmail: "customer@hotel.com"
+      });
+
+      // Step 2: Load Cashfree JS SDK and open checkout
+      const cashfree = await window.Cashfree({ mode: "sandbox" });
+
+      const checkoutOptions = {
+        paymentSessionId: data.paymentSessionId,
+        redirectTarget: "_modal",   // opens as popup, not redirect
+      };
+
+      cashfree.checkout(checkoutOptions).then(async (result) => {
+        if (result.error) {
+          Swal.fire("Payment Failed", result.error.message, "error");
+        } else if (result.redirect) {
+          // redirect happened, verify on return
+        } else {
+          // Step 3: Verify payment
+          const verify = await axios.post(`${BASE_URL}/payment/verify-payment`, {
+            orderId: data.orderId
+          });
+          if (verify.data.success) {
+            await processBill();
+          } else {
+            Swal.fire("Error", "Payment verification failed!", "error");
+          }
+        }
+      });
+    } catch (err) {
+      Swal.fire("Error", "Could not initialize payment. Check backend.", "error");
+      console.error(err);
+    }
+  };
+
+  // ─── Main button handler ───────────────────────────────────────────────────
+  const handleGenerateBill = async () => {
+    if (!selectedEntity || mergedItems.length === 0) {
+      Swal.fire("No selection", "Please select a table or customer with pending orders", "warning");
+      return;
+    }
+
+    if (paymentMode === "Cash") {
+      // Cash: skip Cashfree, mark paid directly
+      await processBill();
+    } else {
+      // UPI / Card: open Cashfree checkout first
+      await initiateCashfree();
     }
   };
 
@@ -596,7 +652,11 @@ export default function BillingPayment() {
                 disabled={!selectedEntity || mergedItems.length === 0 || loading}
                 style={{ padding: "12px", fontWeight: 600 }}
               >
-                {loading ? "Processing..." : "💰 Generate Consolidated Bill & Print"}
+                {loading
+                  ? "Processing..."
+                  : paymentMode === "Cash"
+                    ? "💰 Generate Bill & Print"
+                    : "💳 Pay via Cashfree & Print"}
               </button>
 
               {paidDetails && (
