@@ -3,7 +3,9 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = `${window.API_BASE_URL}`
+
+    ;
 
 export default function AdminLogin() {
     const [email, setEmail] = useState("");
@@ -18,7 +20,7 @@ export default function AdminLogin() {
         setError("");
         setLoading(true);
         try {
-            
+
             const res = await axios.post(`${API_URL}/auth/login`, { email, password });
             const { token, user } = res.data;
             login(token, user);
@@ -61,7 +63,9 @@ export default function AdminLogin() {
 // import { useNavigate } from "react-router-dom";
 // import axios from "axios";
 
-// const API_URL = "http://localhost:5000/api";
+// const API_URL = `${window.API_BASE_URL}`
+
+;
 
 // export default function AdminLogin() {
 //     const [email, setEmail] = useState("");

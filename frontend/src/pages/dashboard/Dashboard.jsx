@@ -3,7 +3,9 @@ import { useApp } from "../../context/AppContext";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = `${window.API_BASE_URL}`
+
+  ;
 
 export default function Dashboard() {
   const { mode } = useApp();

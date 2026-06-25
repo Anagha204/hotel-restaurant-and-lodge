@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = `${window.API_BASE_URL}`
+
+  ;
 
 const actionBtn = {
   background: "#F0F2F5", border: "none", borderRadius: "6px",

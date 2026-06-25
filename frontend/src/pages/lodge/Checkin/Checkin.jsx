@@ -3,7 +3,9 @@ import axios from "axios";
 import Swal from "sweetalert2";
 import { QRCodeSVG } from "qrcode.react";
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = `${window.API_BASE_URL}`
+
+    ;
 
 export default function Checkin() {
     const [bookings, setBookings] = useState([]);

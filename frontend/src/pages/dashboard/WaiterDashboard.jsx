@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = `${window.API_BASE_URL}`
+
+    ;
 
 function Card({ title, value, icon, subtitle }) {
     return (

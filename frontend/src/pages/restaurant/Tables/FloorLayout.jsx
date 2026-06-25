@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = `${window.API_BASE_URL}`
+
+    ;
 
 const STATUS_STYLES = {
     Available: { background: "#E8F5E9", color: "#2E7D32" },

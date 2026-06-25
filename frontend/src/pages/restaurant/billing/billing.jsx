@@ -2,7 +2,9 @@ import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import Swal from "sweetalert2";
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = `${window.API_BASE_URL}`
+
+  ;
 
 // SearchableSelect component (unchanged – keep as is)
 function SearchableSelect({ options = [], value, onChange, placeholder = "Search…", emptyMsg = "No results found" }) {

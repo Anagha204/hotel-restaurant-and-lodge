@@ -94,7 +94,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/payment", paymentRoutes);
 
-mongoose.connect(process.env.MONGO_URL)
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
   .catch(err => console.log(err));
 

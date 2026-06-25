@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = `${window.API_BASE_URL}`
+
+  ;
 
 const primaryBtn = {
   background: "linear-gradient(135deg, #007bff, #0056b3)", border: "none",
@@ -152,8 +154,8 @@ export default function DeliveryManagement() {
                       <small className="text-muted d-block">Assigned Rider</small>
                       <span className="fw-bold text-primary">{d.riderName}</span>
                     </div>
-                    <button 
-                      style={actionBtn} 
+                    <button
+                      style={actionBtn}
                       onClick={() => {
                         const newRider = prompt("Enter rider name:", d.riderName !== "Unassigned" ? d.riderName : "");
                         if (newRider !== null) updateRider(d._id, newRider || "Unassigned");
@@ -163,9 +165,9 @@ export default function DeliveryManagement() {
                     </button>
                   </div>
                   <div className="d-flex gap-2">
-                    <select 
-                      className="form-select form-select-sm" 
-                      value={d.status} 
+                    <select
+                      className="form-select form-select-sm"
+                      value={d.status}
                       onChange={(e) => updateStatus(d._id, e.target.value)}
                       style={{ fontSize: "0.8rem", borderRadius: "6px" }}
                     >

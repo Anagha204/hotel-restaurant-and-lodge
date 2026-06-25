@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = `${window.API_BASE_URL}`
+
+  ;
 
 export default function Reports() {
   const [reportData, setReportData] = useState({
@@ -56,7 +58,7 @@ export default function Reports() {
           </p>
         </div>
         <button className="btn btn-outline-primary" onClick={exportToCSV} disabled={!reportData.salesChartData || reportData.salesChartData.length === 0}>
-            📥 Export CSV
+          📥 Export CSV
         </button>
       </div>
 
@@ -97,9 +99,9 @@ export default function Reports() {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={reportData.salesChartData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                        <XAxis dataKey="date" tick={{fontSize: 12, fill: '#888'}} axisLine={false} tickLine={false} />
-                        <YAxis tick={{fontSize: 12, fill: '#888'}} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} domain={[0, dataMax => (dataMax === 0 ? 1000 : dataMax)]} />
-                        <RechartsTooltip formatter={(value) => [`₹${value}`, 'Sales']} labelStyle={{color: '#333'}} />
+                        <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} tickFormatter={(val) => `₹${val}`} domain={[0, dataMax => (dataMax === 0 ? 1000 : dataMax)]} />
+                        <RechartsTooltip formatter={(value) => [`₹${value}`, 'Sales']} labelStyle={{ color: '#333' }} />
                         <Line type="monotone" dataKey="sales" stroke="#007bff" strokeWidth={3} dot={{ r: 4, strokeWidth: 2 }} activeDot={{ r: 6 }} />
                       </LineChart>
                     </ResponsiveContainer>
@@ -123,9 +125,9 @@ export default function Reports() {
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={reportData.topItems} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                        <XAxis dataKey="name" tick={{fontSize: 12, fill: '#333'}} axisLine={false} tickLine={false} />
-                        <YAxis tick={{fontSize: 12, fill: '#888'}} axisLine={false} tickLine={false} />
-                        <RechartsTooltip formatter={(value) => [value, 'Qty Sold']} cursor={{fill: '#f5f5f5'}} />
+                        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#333' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} />
+                        <RechartsTooltip formatter={(value) => [value, 'Qty Sold']} cursor={{ fill: '#f5f5f5' }} />
                         <Bar dataKey="count" fill="#C62828" radius={[4, 4, 0, 0]} barSize={40} />
                       </BarChart>
                     </ResponsiveContainer>
@@ -147,9 +149,9 @@ export default function Reports() {
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={reportData.salesChartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                        <XAxis dataKey="date" tick={{fontSize: 12, fill: '#333'}} axisLine={false} tickLine={false} />
-                        <YAxis tick={{fontSize: 12, fill: '#888'}} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, dataMax => (dataMax === 0 ? 5 : dataMax)]} />
-                        <RechartsTooltip formatter={(value) => [value, 'Total Orders']} cursor={{fill: '#f5f5f5'}} />
+                        <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#333' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 12, fill: '#888' }} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, dataMax => (dataMax === 0 ? 5 : dataMax)]} />
+                        <RechartsTooltip formatter={(value) => [value, 'Total Orders']} cursor={{ fill: '#f5f5f5' }} />
                         <Bar dataKey="orderCount" fill="#28a745" radius={[4, 4, 0, 0]} barSize={40} />
                       </BarChart>
                     </ResponsiveContainer>
